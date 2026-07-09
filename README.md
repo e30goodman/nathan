@@ -7,7 +7,7 @@ Site personnel pour Nathan (cours de basse).
 ## Contenu
 
 - Leçon 1 — Mini-blocs diatoniques (théorie + pratique)
-- Schéma : `images/mini-blocks.png`
+- Schéma : `images/mini-blocks2.png`
 
 ## Déploiement (repo séparé)
 
@@ -30,7 +30,7 @@ Ensuite : **Settings → Pages → Source : GitHub Actions**.
 Placez votre dessin du manche dans :
 
 ```
-images/mini-blocks.png
+images/mini-blocks2.png
 ```
 
 Puis commit + push.
