@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>BassMastery - Espace Nathan</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -21,6 +21,38 @@
       ::-webkit-scrollbar-thumb:hover { background: #5b21b6; }
       .fade-in { animation: fadeIn 0.3s ease-in-out; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+      .zoom-viewport {
+        touch-action: none;
+        overflow: hidden;
+        cursor: grab;
+        width: 100%;
+        height: min(58vh, 520px);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        border-radius: 1rem;
+        border: 1px solid #1e293b;
+      }
+      .zoom-viewport.is-dragging { cursor: grabbing; }
+      .zoom-image-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        will-change: transform;
+      }
+      .zoom-image-wrap img {
+        display: block;
+        max-width: none;
+        max-height: none;
+        height: min(52vh, 460px);
+        width: auto;
+        user-select: none;
+        -webkit-user-drag: none;
+        pointer-events: none;
+      }
     </style>
 </head>
 <body class="pb-20 relative overflow-x-hidden min-h-screen">
@@ -39,7 +71,7 @@
     </div>
 
     <div id="image-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-2 sm:p-4 hidden">
-        <div class="modal-content bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-lg sm:max-w-3xl md:max-w-4xl p-4 sm:p-6 relative shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div class="modal-content bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-lg sm:max-w-4xl md:max-w-6xl p-4 sm:p-6 relative shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
             <button onclick="closeImageModal()" class="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 bg-slate-800 text-slate-400 hover:text-white rounded-full border border-slate-700">
                 <i data-lucide="x"></i>
             </button>
@@ -94,6 +126,9 @@
         let userUploadedImages = {};
         let currentImageTaskId = null;
         let imageCarouselIndex = {};
+        let imageZoom = { scale: 1, panX: 0, panY: 0, minScale: 1, maxScale: 5 };
+        let zoomDrag = { active: false, startX: 0, startY: 0, panStartX: 0, panStartY: 0 };
+        let pinchState = { active: false, startDistance: 0, startScale: 1 };
 
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
@@ -222,6 +257,7 @@
             e.stopPropagation();
             currentImageTaskId = taskId;
             if (imageCarouselIndex[currentImageTaskId] === undefined) imageCarouselIndex[currentImageTaskId] = 0;
+            resetImageZoom();
             document.getElementById('modal-title').innerText = title;
             const modal = document.getElementById('image-modal');
             modal.classList.remove('hidden');
@@ -235,6 +271,151 @@
             document.getElementById('image-modal').classList.add('hidden');
             currentImageTaskId = null;
         };
+
+        function getTouchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.hypot(dx, dy);
+        }
+
+        function clampImagePan() {
+            const viewport = document.getElementById('zoom-viewport');
+            const wrap = document.getElementById('zoom-image-wrap');
+            if (!viewport || !wrap) return;
+
+            const vw = viewport.clientWidth;
+            const vh = viewport.clientHeight;
+            const rect = wrap.getBoundingClientRect();
+            const scaledW = rect.width;
+            const scaledH = rect.height;
+            const maxX = Math.max(0, (scaledW - vw) / 2);
+            const maxY = Math.max(0, (scaledH - vh) / 2);
+
+            imageZoom.panX = Math.min(maxX, Math.max(-maxX, imageZoom.panX));
+            imageZoom.panY = Math.min(maxY, Math.max(-maxY, imageZoom.panY));
+        }
+
+        function applyImageZoomTransform() {
+            const wrap = document.getElementById('zoom-image-wrap');
+            const label = document.getElementById('zoom-level-label');
+            if (!wrap) return;
+            wrap.style.transform = `translate(${imageZoom.panX}px, ${imageZoom.panY}px) scale(${imageZoom.scale})`;
+            if (label) label.textContent = `${Math.round(imageZoom.scale * 100)}%`;
+            clampImagePan();
+        }
+
+        function resetImageZoom() {
+            imageZoom.scale = 1;
+            imageZoom.panX = 0;
+            imageZoom.panY = 0;
+        }
+
+        function setImageZoom(nextScale) {
+            imageZoom.scale = Math.min(imageZoom.maxScale, Math.max(imageZoom.minScale, nextScale));
+            clampImagePan();
+            applyImageZoomTransform();
+        }
+
+        window.zoomImageIn = () => setImageZoom(imageZoom.scale * 1.25);
+        window.zoomImageOut = () => setImageZoom(imageZoom.scale / 1.25);
+        window.zoomImageReset = () => {
+            resetImageZoom();
+            applyImageZoomTransform();
+            autoFitWideImage();
+        };
+
+        function autoFitWideImage() {
+            const img = document.getElementById('zoom-image');
+            if (!img || !img.naturalWidth) return;
+
+            const ratio = img.naturalWidth / img.naturalHeight;
+            if (ratio > 1.4) {
+                imageZoom.scale = Math.min(3, Math.max(1.75, ratio / 3.5));
+                imageZoom.panX = 0;
+                imageZoom.panY = 0;
+                applyImageZoomTransform();
+            }
+        }
+
+        function setupZoomPan() {
+            const viewport = document.getElementById('zoom-viewport');
+            const img = document.getElementById('zoom-image');
+            if (!viewport || !img) return;
+
+            if (viewport._zoomBound) return;
+            viewport._zoomBound = true;
+
+            const onPointerDown = (e) => {
+                if (e.target.closest('button')) return;
+                if (pinchState.active) return;
+                zoomDrag.active = true;
+                zoomDrag.startX = e.clientX;
+                zoomDrag.startY = e.clientY;
+                zoomDrag.panStartX = imageZoom.panX;
+                zoomDrag.panStartY = imageZoom.panY;
+                viewport.classList.add('is-dragging');
+                viewport.setPointerCapture(e.pointerId);
+            };
+
+            const onPointerMove = (e) => {
+                if (!zoomDrag.active || pinchState.active) return;
+                imageZoom.panX = zoomDrag.panStartX + (e.clientX - zoomDrag.startX);
+                imageZoom.panY = zoomDrag.panStartY + (e.clientY - zoomDrag.startY);
+                applyImageZoomTransform();
+            };
+
+            const endDrag = (e) => {
+                if (!zoomDrag.active) return;
+                zoomDrag.active = false;
+                viewport.classList.remove('is-dragging');
+                if (e.pointerId !== undefined) {
+                    try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+                }
+            };
+
+            viewport.addEventListener('pointerdown', onPointerDown);
+            viewport.addEventListener('pointermove', onPointerMove);
+            viewport.addEventListener('pointerup', endDrag);
+            viewport.addEventListener('pointercancel', endDrag);
+
+            viewport.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    pinchState.active = true;
+                    pinchState.startDistance = getTouchDistance(e.touches);
+                    pinchState.startScale = imageZoom.scale;
+                    zoomDrag.active = false;
+                }
+            }, { passive: true });
+
+            viewport.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2 && pinchState.active) {
+                    e.preventDefault();
+                    const distance = getTouchDistance(e.touches);
+                    if (pinchState.startDistance > 0) {
+                        setImageZoom(pinchState.startScale * (distance / pinchState.startDistance));
+                    }
+                }
+            }, { passive: false });
+
+            viewport.addEventListener('touchend', (e) => {
+                if (e.touches.length < 2) pinchState.active = false;
+            });
+
+            viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const factor = e.deltaY > 0 ? 0.9 : 1.1;
+                setImageZoom(imageZoom.scale * factor);
+            }, { passive: false });
+
+            const onImageReady = () => {
+                resetImageZoom();
+                applyImageZoomTransform();
+                autoFitWideImage();
+            };
+
+            if (img.complete) onImageReady();
+            else img.onload = onImageReady;
+        }
 
         window.renderGallery = () => {
             const gallery = document.getElementById('modal-gallery');
@@ -255,24 +436,41 @@
                 const activeImage = images[activeIndex];
 
                 gallery.innerHTML = `
-                    <div class="relative rounded-2xl overflow-hidden border border-slate-800 bg-black flex items-center justify-center" style="min-height: 300px; max-height: 70vh; aspect-ratio: 4/3;">
-                        <img src="${activeImage}" class="max-w-full max-h-full w-auto h-auto object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                        <div class="hidden flex-col items-center justify-center text-slate-500 p-8">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <p class="text-xs text-slate-400">Pincez pour zoomer · Glissez pour déplacer</p>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="window.zoomImageOut()" class="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-slate-700" title="Zoom arrière">
+                                <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                            </button>
+                            <span id="zoom-level-label" class="text-xs font-semibold text-slate-300 min-w-[3rem] text-center">100%</span>
+                            <button type="button" onclick="window.zoomImageIn()" class="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-slate-700" title="Zoom avant">
+                                <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                            </button>
+                            <button type="button" onclick="window.zoomImageReset()" class="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-slate-700" title="Réinitialiser">
+                                <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="zoom-viewport" class="zoom-viewport">
+                        <div id="zoom-image-wrap" class="zoom-image-wrap">
+                            <img id="zoom-image" src="${activeImage}" alt="Schéma" onerror="this.style.display='none'; document.getElementById('zoom-fallback').style.display='flex';" />
+                        </div>
+                        <div id="zoom-fallback" class="hidden absolute inset-0 flex-col items-center justify-center text-slate-500 p-8">
                             <i data-lucide="image-off" class="w-16 h-16 mb-4 opacity-50"></i>
                             <p class="text-sm">Image non chargée</p>
                         </div>
                         ${total > 1 ? `
-                        <div class="absolute inset-y-0 left-0 flex items-center">
+                        <div class="absolute inset-y-0 left-0 flex items-center z-10">
                             <button onclick="window.changeImageSlide(-1)" class="p-3 bg-black/50 hover:bg-black/70 text-white rounded-r-lg transition-colors">
                                 <i data-lucide="chevron-left" class="w-6 h-6"></i>
                             </button>
                         </div>
-                        <div class="absolute inset-y-0 right-0 flex items-center">
+                        <div class="absolute inset-y-0 right-0 flex items-center z-10">
                             <button onclick="window.changeImageSlide(1)" class="p-3 bg-black/50 hover:bg-black/70 text-white rounded-l-lg transition-colors">
                                 <i data-lucide="chevron-right" class="w-6 h-6"></i>
                             </button>
                         </div>
-                        <div class="absolute bottom-0 left-0 w-full bg-black/70 px-3 py-2 text-center text-sm text-slate-100">
+                        <div class="absolute bottom-0 left-0 w-full bg-black/70 px-3 py-2 text-center text-sm text-slate-100 z-10">
                             Photo ${activeIndex + 1} / ${total}
                         </div>
                         ` : ''}
@@ -285,6 +483,7 @@
                     </div>
                     ` : ''}
                 `;
+                setupZoomPan();
             }
             lucide.createIcons();
         };
@@ -311,6 +510,7 @@
             const total = images.length;
             const currentIndex = imageCarouselIndex[currentImageTaskId] || 0;
             imageCarouselIndex[currentImageTaskId] = (currentIndex + direction + total) % total;
+            resetImageZoom();
             renderGallery();
         };
 
@@ -319,6 +519,7 @@
             const images = userUploadedImages[currentImageTaskId] || [];
             if (!images.length) return;
             imageCarouselIndex[currentImageTaskId] = Math.max(0, Math.min(index, images.length - 1));
+            resetImageZoom();
             renderGallery();
         };
 
