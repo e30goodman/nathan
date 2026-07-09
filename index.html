@@ -121,10 +121,20 @@
                             'Structure de la gamme majeure : ton — ton — demi-ton — ton — ton — ton — demi-ton. Exceptions : si–do et mi–fa (demi-tons).',
                             'Mini-blocs sur 2 cordes : 6 quartes + 1 triton. Deux intervalles de base — la quarte et le triton.',
                             'Géométrie : les mini-blocs sont symétriques par rapport au premier degré (miroir).'
+                        ]
+                    },
+                    {
+                        id: 'n1-l1-prac',
+                        title: 'PRATIQUE DE LA LEÇON 1',
+                        description: 'Validation des acquis : mini-blocs diatoniques sur le manche.',
+                        isPractice: true,
+                        parentLessonId: 'n1-l1',
+                        details: [
+                            'Objectif : mémoriser les mini-blocs et leur position sur le manche.'
                         ],
-                        pratique: [
-                            'Répéter les mini-blocs en Mi majeur et Do majeur.',
-                            'Construire les mêmes blocs à partir de Fa majeur — mémoriser leur position sur le manche.'
+                        tasks: [
+                            { id: 'n1-prac-1', text: 'Répéter les mini-blocs en Mi majeur et Do majeur.' },
+                            { id: 'n1-prac-2', text: 'Construire les mêmes blocs à partir de Fa majeur — mémoriser leur position sur le manche.' }
                         ]
                     }
                 ]
@@ -198,13 +208,21 @@
                 `;
 
                 module.lessons.forEach(lesson => {
+                    if (lesson.parentLessonId && !expandedLessons.has(lesson.parentLessonId)) {
+                        return;
+                    }
+
+                    const isPractice = lesson.isPractice;
                     const isExpanded = expandedLessons.has(lesson.id);
 
                     html += `
-                        <div class="group relative bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-2xl overflow-hidden transition-all duration-300">
-                            <div onclick="window.toggleLesson('${lesson.id}')" class="p-6 flex items-center justify-between cursor-pointer transition-colors bg-slate-800/30 hover:bg-slate-800/50">
+                        <div class="group relative bg-slate-900 border rounded-2xl overflow-hidden transition-all duration-300 ${isPractice ? 'border-emerald-500/50 hover:border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-slate-800 hover:border-slate-600'}">
+                            <div onclick="window.toggleLesson('${lesson.id}')" class="p-6 flex items-center justify-between cursor-pointer transition-colors ${isPractice ? 'bg-emerald-900/10 hover:bg-emerald-900/20' : 'bg-slate-800/30 hover:bg-slate-800/50'}">
                                 <div class="flex-1">
-                                    <h4 class="text-lg md:text-xl font-bold mb-1 text-slate-200">${lesson.title}</h4>
+                                    <h4 class="text-lg md:text-xl font-bold mb-1 flex items-center gap-2 ${isPractice ? 'text-emerald-300' : 'text-slate-200'}">
+                                        ${isPractice ? '<i data-lucide="target" class="w-5 h-5 text-emerald-400"></i>' : ''}
+                                        ${lesson.title}
+                                    </h4>
                                     <p class="text-slate-400 text-sm md:text-base pr-4">${lesson.description}</p>
                                 </div>
                                 <div class="text-slate-500">
@@ -213,8 +231,8 @@
                             </div>
 
                             ${isExpanded ? `
-                                <div class="p-6 pt-0 border-t border-slate-800/50 bg-slate-900/50 fade-in">
-                                    ${lesson.details ? `
+                                <div class="p-6 pt-0 border-t ${isPractice ? 'border-emerald-500/20' : 'border-slate-800/50'} bg-slate-900/50 fade-in">
+                                    ${lesson.details && lesson.details.length > 0 ? `
                                         <div class="mb-6 mt-6 bg-slate-800/40 p-5 rounded-xl border border-slate-700/50">
                                             <div class="flex items-center justify-between mb-3">
                                                 <h5 class="text-violet-400 font-semibold text-xs uppercase tracking-wide flex items-center gap-2">
@@ -232,14 +250,15 @@
                                         </div>
                                     ` : ''}
 
-                                    ${lesson.pratique && lesson.pratique.length > 0 ? `
-                                        <div class="bg-emerald-900/10 p-5 rounded-xl border border-emerald-500/30">
-                                            <h5 class="text-emerald-400 font-semibold text-xs uppercase tracking-wide mb-3 flex items-center gap-2">
-                                                <i data-lucide="target" class="w-4 h-4"></i> Pratique
-                                            </h5>
-                                            <ul class="space-y-2">
-                                                ${lesson.pratique.map(p => `<li class="flex items-start gap-2 text-slate-300 text-sm"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>${p}</li>`).join('')}
-                                            </ul>
+                                    ${lesson.tasks && lesson.tasks.length > 0 ? `
+                                        <div class="space-y-3 mt-6">
+                                            <h5 class="text-slate-500 font-semibold text-xs uppercase tracking-wide mb-2">Objectifs Pratiques</h5>
+                                            ${lesson.tasks.map(task => `
+                                                <div class="flex items-start gap-3 p-3 rounded-lg border bg-slate-800/50 border-slate-700 text-slate-300">
+                                                    <span class="mt-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                                                    <span class="font-medium text-sm">${task.text}</span>
+                                                </div>
+                                            `).join('')}
                                         </div>
                                     ` : ''}
                                 </div>
