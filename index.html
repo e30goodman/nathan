@@ -25,9 +25,9 @@
       .zoom-viewport {
         touch-action: none;
         overflow: hidden;
-        cursor: grab;
+        cursor: default;
         width: 100%;
-        height: min(58vh, 520px);
+        height: min(52vh, 420px);
         position: relative;
         display: flex;
         align-items: center;
@@ -36,19 +36,17 @@
         border-radius: 1rem;
         border: 1px solid #1e293b;
       }
-      .zoom-viewport.is-dragging { cursor: grabbing; }
+      .zoom-viewport.can-pan { cursor: grab; }
+      .zoom-viewport.can-pan.is-dragging { cursor: grabbing; }
       .zoom-image-wrap {
         display: flex;
         align-items: center;
         justify-content: center;
+        transform-origin: center center;
         will-change: transform;
       }
       .zoom-image-wrap img {
         display: block;
-        max-width: none;
-        max-height: none;
-        height: min(52vh, 460px);
-        width: auto;
         user-select: none;
         -webkit-user-drag: none;
         pointer-events: none;
@@ -126,7 +124,7 @@
         let userUploadedImages = {};
         let currentImageTaskId = null;
         let imageCarouselIndex = {};
-        let imageZoom = { scale: 1, panX: 0, panY: 0, minScale: 1, maxScale: 5 };
+        let imageZoom = { scale: 1, panX: 0, panY: 0, minScale: 1, maxScale: 5, fitWidth: 0, fitHeight: 0 };
         let zoomDrag = { active: false, startX: 0, startY: 0, panStartX: 0, panStartY: 0 };
         let pinchState = { active: false, startDistance: 0, startScale: 1 };
 
@@ -280,19 +278,28 @@
 
         function clampImagePan() {
             const viewport = document.getElementById('zoom-viewport');
-            const wrap = document.getElementById('zoom-image-wrap');
-            if (!viewport || !wrap) return;
+            if (!viewport || !imageZoom.fitWidth) return;
 
             const vw = viewport.clientWidth;
             const vh = viewport.clientHeight;
-            const rect = wrap.getBoundingClientRect();
-            const scaledW = rect.width;
-            const scaledH = rect.height;
-            const maxX = Math.max(0, (scaledW - vw) / 2);
-            const maxY = Math.max(0, (scaledH - vh) / 2);
+            const scaledW = imageZoom.fitWidth * imageZoom.scale;
+            const scaledH = imageZoom.fitHeight * imageZoom.scale;
 
-            imageZoom.panX = Math.min(maxX, Math.max(-maxX, imageZoom.panX));
-            imageZoom.panY = Math.min(maxY, Math.max(-maxY, imageZoom.panY));
+            if (scaledW <= vw) imageZoom.panX = 0;
+            else {
+                const maxX = (scaledW - vw) / 2;
+                imageZoom.panX = Math.min(maxX, Math.max(-maxX, imageZoom.panX));
+            }
+
+            if (scaledH <= vh) imageZoom.panY = 0;
+            else {
+                const maxY = (scaledH - vh) / 2;
+                imageZoom.panY = Math.min(maxY, Math.max(-maxY, imageZoom.panY));
+            }
+
+            if (viewport) {
+                viewport.classList.toggle('can-pan', imageZoom.scale > 1.01);
+            }
         }
 
         function applyImageZoomTransform() {
@@ -318,23 +325,24 @@
 
         window.zoomImageIn = () => setImageZoom(imageZoom.scale * 1.25);
         window.zoomImageOut = () => setImageZoom(imageZoom.scale / 1.25);
-        window.zoomImageReset = () => {
+        window.zoomImageReset = () => fitImageToViewport();
+
+        function fitImageToViewport() {
+            const viewport = document.getElementById('zoom-viewport');
+            const img = document.getElementById('zoom-image');
+            if (!viewport || !img || !img.naturalWidth) return;
+
+            const vw = viewport.clientWidth;
+            const vh = viewport.clientHeight;
+            const fit = Math.min(vw / img.naturalWidth, vh / img.naturalHeight);
+
+            imageZoom.fitWidth = img.naturalWidth * fit;
+            imageZoom.fitHeight = img.naturalHeight * fit;
+            img.style.width = `${imageZoom.fitWidth}px`;
+            img.style.height = `${imageZoom.fitHeight}px`;
+
             resetImageZoom();
             applyImageZoomTransform();
-            autoFitWideImage();
-        };
-
-        function autoFitWideImage() {
-            const img = document.getElementById('zoom-image');
-            if (!img || !img.naturalWidth) return;
-
-            const ratio = img.naturalWidth / img.naturalHeight;
-            if (ratio > 1.4) {
-                imageZoom.scale = Math.min(3, Math.max(1.75, ratio / 3.5));
-                imageZoom.panX = 0;
-                imageZoom.panY = 0;
-                applyImageZoomTransform();
-            }
         }
 
         function setupZoomPan() {
@@ -348,6 +356,7 @@
             const onPointerDown = (e) => {
                 if (e.target.closest('button')) return;
                 if (pinchState.active) return;
+                if (imageZoom.scale <= 1.01) return;
                 zoomDrag.active = true;
                 zoomDrag.startX = e.clientX;
                 zoomDrag.startY = e.clientY;
@@ -408,9 +417,7 @@
             }, { passive: false });
 
             const onImageReady = () => {
-                resetImageZoom();
-                applyImageZoomTransform();
-                autoFitWideImage();
+                fitImageToViewport();
             };
 
             if (img.complete) onImageReady();
@@ -437,7 +444,7 @@
 
                 gallery.innerHTML = `
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <p class="text-xs text-slate-400">Pincez pour zoomer · Glissez pour déplacer</p>
+                        <p class="text-xs text-slate-400">Pincez pour zoomer · Glissez pour déplacer (après zoom)</p>
                         <div class="flex items-center gap-2">
                             <button type="button" onclick="window.zoomImageOut()" class="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-slate-700" title="Zoom arrière">
                                 <i data-lucide="zoom-out" class="w-4 h-4"></i>
