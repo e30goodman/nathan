@@ -146,12 +146,38 @@
                             { id: 'n1-prac-1', text: 'Répéter les mini-blocs en Mi majeur et Do majeur.' },
                             { id: 'n1-prac-2', text: 'Construire les mêmes blocs en Fa majeur — mémoriser leur position sur le manche.' }
                         ]
+                    },
+                    {
+                        id: 'n1-l2',
+                        title: 'Leçon 2 — Déplacer les mini-blocs : nouvelles couleurs',
+                        description: 'En décalant les mini-blocs et en les jouant depuis des notes différentes, on change la couleur (majeur / mineur / modes).',
+                        details: [
+                            'Idée clé : si l\'on décale les mini-blocs et qu\'on les joue depuis des notes différentes, on crée d\'autres couleurs — on peut passer du mineur au majeur (et inversement).',
+                            'Majeur (Ionien) : ton – ton – demi-ton – ton – ton – ton – demi-ton.',
+                            'Mineur naturel (Éolien) : ton – demi-ton – ton – ton – demi-ton – ton – ton.',
+                            'Phrygien : demi-ton – ton – ton – ton – demi-ton – ton – ton.'
+                        ]
+                    },
+                    {
+                        id: 'n1-l2-prac',
+                        title: 'PRATIQUE DE LA LEÇON 2',
+                        description: 'Revoir majeur et mineur, puis construire le Dorien depuis la note ouverte Mi.',
+                        isPractice: true,
+                        parentLessonId: 'n1-l2',
+                        details: [
+                            'Objectif : se souvenir comment on a joué le mineur et le majeur en cours, puis travailler le mode Dorien.',
+                            'Dorien (mineur dorien) : ton – demi-ton – ton – ton – ton – demi-ton – ton.'
+                        ],
+                        tasks: [
+                            { id: 'n1-l2-prac-1', text: 'Rejouer / se souvenir : mineur naturel et majeur comme en cours.' },
+                            { id: 'n1-l2-prac-2', text: 'Depuis la corde ouverte Mi (root / fondamentale) : construire et jouer le Dorien. Structure : ton – demi-ton – ton – ton – ton – demi-ton – ton.' }
+                        ]
                     }
                 ]
             }
         ];
 
-        let expandedLessons = new Set(['n1-l1']);
+        let expandedLessons = new Set(['n1-l2', 'n1-l2-prac']);
         let userUploadedImages = {};
         let currentImageTaskId = null;
         let imageCarouselIndex = {};
